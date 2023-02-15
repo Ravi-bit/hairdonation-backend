@@ -1,6 +1,6 @@
 import express from 'express';
 import pool from '../db.js';
-import {authenticateRecipientToken} from '../middleware/authorization.js';
+import {authenticateDonorToken, authenticateRecipientToken} from '../middleware/authorization.js';
 
 const router = express.Router();
 
@@ -92,20 +92,27 @@ router.post('/requests', authenticateRecipientToken, async (req, res) =>{
     }
 });
 
-router.patch('/request/:id/status', authenticateRecipientToken, async (req, res) => {
+router.patch('/request/:id/status', authenticateDonorToken, async (req, res) => {
     try {
         if (req.user.uid) {
             if (req.body.status) {
-                const request = await pool.query('SELECT request_status FROM dbo.recipient_requests_tbl where userid = $1 and requestid = $2'
-                , [req.user.uid, req.params.id]);
-                if (request.rows[0]) { 
-                    const requestStatus = await pool.query('UPDATE dbo.recipient_requests_tbl SET request_status = $1, lastupdatedat = NOW() where userid = $2 and requestid = $3 RETURNING requestid'
-                                             , [req.body.status, req.user.uid, req.params.id]);
-                    res.status(200).json({ message : `Status updated successfully for requestid - ${requestStatus.rows[0].requestid}`});
+                    if (req.body.status == 1) {
+                        const requestStatus = await pool.query('UPDATE dbo.recipient_requests_tbl SET request_status = $1, lastupdatedat = NOW() where requestid = $2 RETURNING requestid, donationid'
+                            , [req.body.status,  req.params.id]);
+                        console.log(requestStatus)
+                            const donStatus = await pool.query('UPDATE dbo.hair_donations_tbl SET donationstatus = 1, lastupdatedat = NOW() where donationid = $1 '
+                            , [ requestStatus.rows[0].donationid]);
+                         
+                            res.status(200).json({ message : `Status updated successfully for requestid - ${requestStatus.rows[0].requestid}`});
+                    } else if (req.body.status == 2) {
+                        const requestStatus = await pool.query('UPDATE dbo.recipient_requests_tbl SET request_status = $1, lastupdatedat = NOW() where requestid = $2 RETURNING requestid, donationid'
+                            , [req.body.status, req.params.id]);
+                         
+                        res.status(200).json({ message : `Status updated successfully for requestid - ${requestStatus.rows[0].requestid}`});
             
-                } else {
-                    throw new Error(`Requestid - ${req.params.id} doesn't exist for userid - ${req.user.uid}`);
-                }
+                    } else {
+                        throw new Error('Unexpected Status');
+                    }
                 } else {
                 throw new Error('Please pass the status');
             }
@@ -114,6 +121,7 @@ router.patch('/request/:id/status', authenticateRecipientToken, async (req, res)
             throw new Error('uid is not matching or incorrect');
         }
     } catch (error) {
+        console.log(error);
       res.status(500).json({error: error.message});
     }
 });

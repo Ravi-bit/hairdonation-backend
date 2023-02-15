@@ -64,4 +64,41 @@ create table
             NULL,
             CONSTRAINT fk_notifications_donationdid FOREIGN KEY(donationid) REFERENCES dbo.hair_donations_tbl(donationid) ON DELETE
         SET NULL
-    )
+    ) create or
+replace
+    function dbo.get_near_donor_details (
+        vhairtype text,
+        vcountry varchar(100),
+        vcity varchar(100),
+        vaddress text,
+        vcontinent varchar(100)
+    ) returns
+table (donor_id uuid, donationid int4) language plpgsql as $$ begin
+return query
+select
+    ut.uid as donorid,
+    hdt.donationid
+from
+    dbo.hair_donations_tbl hdt
+    inner join dbo.users_tbl ut on hdt.userid = ut.uid
+where
+    hdt.hairtype ilike ('%' || vhairtype || '%')
+    and (
+        ut.country ilike ('%' || vcountry || '%')
+        or ut.city ilike ('%' || vcity || '%')
+        or ut.address ilike ('%' || vaddress || '%')
+        or ut.continent ilike ('%' || vcontinent || '%')
+    );
+
+end;
+
+$$
+select *
+from
+    dbo.get_near_donor_details(
+        'Black',
+        'India',
+        'Hyderabad',
+        'Golkonda mandal',
+        'Asia'
+    );

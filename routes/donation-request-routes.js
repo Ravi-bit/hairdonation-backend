@@ -22,7 +22,7 @@ router.get('/requests', authenticateDonorToken, async (req, res) =>{
 router.get('/showrecipientrequests', authenticateDonorToken, async (req, res) =>{
     try {
         if (req.user.uid) {
-            const donations = await pool.query('SELECT * FROM dbo.recipient_requests_tbl where donation_owner = $1 and donationid is not null'
+            const donations = await pool.query('SELECT * FROM dbo.recipient_requests_tbl where donation_owner = $1 and donationid is not null and donation_owner is not null and request_status = 0'
                 , [req.user.uid]);
             for (let i = 0; i < donations.rows.length; i++){
                 const donationDetails = await pool.query('SELECT * from dbo.hair_donations_tbl where donationid = $1',
